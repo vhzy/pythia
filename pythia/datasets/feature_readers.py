@@ -59,9 +59,7 @@ class FeatureReader:
     def read(self, image_feat_path):
         if not image_feat_path.endswith("npy"):
             return None
-        un_path = self.base_path.split('data')[-1]
-        base_path = '/mnt/data2/lixiangpeng/dataset/textvqa' + un_path
-        image_feat_path = os.path.join(base_path, image_feat_path)
+        image_feat_path = os.path.join(self.base_path, image_feat_path)
 
         if self.feat_reader is None:
             if self.ndim is None:
