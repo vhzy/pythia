@@ -43,6 +43,11 @@ python tools/run.py --tasks vqa --datasets m4c_textvqa --model cig \
 (Note: use `--resume 1` instead of `--resume_file data/models/m4c_textvqa_cig.ckpt` to evaluated your trained snapshots. For running inference on val set, use `--run_type val` and rest of the arguments remain same.)
 
 
+## Batch Clean up GPU：
+sudo fuser -v /dev/nvidia* |awk '{for(i=1;i<=NF;i++)print "kill -9 " $i;}' | sudo sh
+## Single Clean up GPU:
+sudo fuser -v /dev/nvidia4 |awk '{for(i=1;i<=NF;i++)print "kill -9 " $i;}' | sudo sh
+
 ## License
 
 Pythia is licensed under BSD license available in [LICENSE](LICENSE) file
