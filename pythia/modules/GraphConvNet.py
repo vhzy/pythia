@@ -173,12 +173,12 @@ class QuestionConditionedGAT(nn.Module):
         self.k_fc = nn.Linear(dim, 1)
         self.dropout = nn.Dropout(dropout_r)
 
-    def forward(self, ques_repr, feat_repr, adj_mat, residual): # bs x N x dim
+    def forward(self, ques_repr, feat_repr, adj_mat, residual=True): # bs x N x dim
         ques_flat_repr = self.ques_flat(ques_repr).unsqueeze(1) # bs x 1 x dim
         feat_len = feat_repr.size(1)
         ques_ext_repr = ques_flat_repr.repeat(1, feat_len, 1) # bs x N x dim
-        feat_repr = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim
-        feat_proj = self.fc(feat_repr)
+        feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim
+        feat_proj = self.fc(feat_repr_fc)
         q_feats = self.q_fc(feat_proj)
         k_feats = self.k_fc(feat_proj)
         logits = q_feats + torch.transpose(k_feats, 2, 1)

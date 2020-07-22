@@ -375,7 +375,7 @@ class MMT(BertPreTrainedModel):
         # self.ggcn = GatedGraphConvNet(768) # 40.47 -- 40.76
         # self.ggcn = MultiHeadGraphAttNet(768) # 39.86
         # self.ggcn = BaseGraphAttNet(768) # 39.57
-        self.ggcn = QuestionConditionedGAT(768) # 40.99
+        self.ggcn = QuestionConditionedGAT(768, 0.1) # 40.99
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
