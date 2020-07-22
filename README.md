@@ -24,15 +24,15 @@ training_parameters.data_parallel True
 
 2) to evaluate the pretrained CIG model locally on the TextVQA validation set (assuming the pretrained model is downloaded to `data/models/cig_textvqa_m4c.ckpt`):
 ```
-python tools/run.py --tasks vqa --datasets m4c_textvqa --model m4c \
---config configs/vqa/m4c_textvqa/m4c.yml \
---save_dir save/m4c \
+python tools/run.py --tasks vqa --datasets m4c_textvqa --model cig \
+--config configs/vqa/cig_textvqa/cig.yml \
+--save_dir save/cig \
 --run_type val \
---resume_file data/models/m4c_textvqa_m4c.ckpt
+--resume_file data/models/m4c_textvqa_cig.ckpt
 ```
 (Note: use `--resume 1` instead of `--resume_file data/models/m4c_textvqa_m4c.ckpt` to evaluated your trained snapshots.)
 
-3) to generate the EvalAI prediction files for the TextVQA test set (assuming the pretrained model is downloaded to `data/models/m4c_textvqa_m4c.ckpt`):
+3) to generate the EvalAI prediction files for the TextVQA test set (assuming the pretrained model is downloaded to `data/models/m4c_textvqa_cig.ckpt`):
 ```
 python tools/run.py --tasks vqa --datasets m4c_textvqa --model cig \
 --config configs/vqa/cig_textvqa/cig.yml \
@@ -40,7 +40,7 @@ python tools/run.py --tasks vqa --datasets m4c_textvqa --model cig \
 --run_type inference --evalai_inference 1 \
 --resume_file data/models/m4c_textvqa_cig.ckpt
 ```
-(Note: use `--resume 1` instead of `--resume_file data/models/m4c_textvqa_m4c.ckpt` to evaluated your trained snapshots. For running inference on val set, use `--run_type val` and rest of the arguments remain same.)
+(Note: use `--resume 1` instead of `--resume_file data/models/m4c_textvqa_cig.ckpt` to evaluated your trained snapshots. For running inference on val set, use `--run_type val` and rest of the arguments remain same.)
 
 
 ## License
