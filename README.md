@@ -46,7 +46,7 @@ python tools/run.py --tasks vqa --datasets m4c_textvqa --model cig \
 ## Batch Clean up GPU：
 sudo fuser -v /dev/nvidia* |awk '{for(i=1;i<=NF;i++)print "kill -9 " $i;}' | sudo sh
 ## Single Clean up GPU:
-sudo fuser -v /dev/nvidia2 |awk '{for(i=1;i<=NF;i++)print "kill -9 " $i;}' | sudo sh
+sudo fuser -v /dev/nvidia4 |awk '{for(i=1;i<=NF;i++)print "kill -9 " $i;}' | sudo sh
 
 ## License
 
