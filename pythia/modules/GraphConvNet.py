@@ -163,7 +163,7 @@ class AttFlat(nn.Module):
         return x_atted
 
 class QuestionConditionedGAT(nn.Module):
-    def __init__(self, dim, dropout_r):
+    def __init__(self, dim, dropout_r=0.15):
         super(QuestionConditionedGAT, self).__init__()
         self.dim = dim
         self.ques_flat = AttFlat(768)

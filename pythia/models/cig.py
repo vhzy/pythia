@@ -16,7 +16,7 @@ from pythia.modules.layers import ClassifierLayer
 
 from pythia.modules.encoders import ImageEncoder
 from pythia.modules.GraphConvNet import GatedGraphConvNet, BaseGraphAttNet, QuestionConditionedGAT
-# 1
+
 @registry.register_model("cig")
 class CIG(BaseModel):
     def __init__(self, config):

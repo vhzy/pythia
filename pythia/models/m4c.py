@@ -375,7 +375,7 @@ class MMT(BertPreTrainedModel):
         # self.ggcn = GatedGraphConvNet(768) # 40.47 -- 40.76
         # self.ggcn = MultiHeadGraphAttNet(768) # 39.86
         # self.ggcn = BaseGraphAttNet(768) # 39.57
-        self.ggcn = QuestionConditionedGAT(768, 0.1) # 40.99
+        self.ggcn = QuestionConditionedGAT(768, 0.15) # 40.99
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
@@ -408,22 +408,22 @@ class MMT(BertPreTrainedModel):
         concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
         related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
         encoder_inputs = torch.cat(
-            [related_feat, dec_emb],
+            [txt_emb, related_feat, dec_emb],
             dim=1
         )
         attention_mask = torch.cat(
-            [obj_mask, ocr_mask, dec_mask],
+            [txt_mask, obj_mask, ocr_mask, dec_mask],
             dim=1
         )
 
         # offsets of each modality in the joint embedding space
-        # txt_max_num = txt_mask.size(-1)
+        txt_max_num = txt_mask.size(-1)
         obj_max_num = obj_mask.size(-1)
         ocr_max_num = ocr_mask.size(-1)
         dec_max_num = dec_mask.size(-1)
         txt_begin = 0
-        # txt_end = txt_begin + txt_max_num
-        ocr_begin = obj_max_num
+        txt_end = txt_begin + txt_max_num
+        ocr_begin = txt_max_num + obj_max_num
         ocr_end = ocr_begin + ocr_max_num
 
         # We create a 3D attention mask from a 2D tensor mask.
@@ -455,13 +455,13 @@ class MMT(BertPreTrainedModel):
         )
 
         mmt_seq_output = encoder_outputs[0]
-        # mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
+        mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
         mmt_ocr_output = mmt_seq_output[:, ocr_begin:ocr_end]
         mmt_dec_output = mmt_seq_output[:, -dec_max_num:]
 
         results = {
             'mmt_seq_output': mmt_seq_output,
-            # 'mmt_txt_output': mmt_txt_output,
+            'mmt_txt_output': mmt_txt_output,
             'mmt_ocr_output': mmt_ocr_output,
             'mmt_dec_output': mmt_dec_output,
         }
