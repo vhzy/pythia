@@ -15,7 +15,7 @@ from pythia.models.base_model import BaseModel
 from pythia.modules.layers import ClassifierLayer
 
 from pythia.modules.encoders import ImageEncoder
-from pythia.modules.GraphConvNet import GatedGraphConvNet, BaseGraphAttNet, QuestionConditionedGAT
+
 
 @registry.register_model("m4c")
 class M4C(BaseModel):
@@ -276,7 +276,6 @@ class M4C(BaseModel):
             ocr_mask=fwd_results['ocr_mask'],
             fixed_ans_emb=self.classifier.module.weight,
             prev_inds=fwd_results['prev_inds'],
-            overlap_flag = sample_list.overlap_flag,
         )
         fwd_results.update(mmt_results)
 
@@ -372,10 +371,6 @@ class MMT(BertPreTrainedModel):
         super().__init__(config)
 
         self.prev_pred_embeddings = PrevPredEmbeddings(config)
-        # self.ggcn = GatedGraphConvNet(768) # 40.47 -- 40.76
-        # self.ggcn = MultiHeadGraphAttNet(768) # 39.86
-        # self.ggcn = BaseGraphAttNet(768) # 39.57
-        self.ggcn = QuestionConditionedGAT(768, 0.15) # 40.99
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
@@ -388,8 +383,7 @@ class MMT(BertPreTrainedModel):
                 ocr_emb,
                 ocr_mask,
                 fixed_ans_emb,
-                prev_inds,
-                overlap_flag,):
+                prev_inds):
 
         # build embeddings for predictions in previous decoding steps
         # fixed_ans_emb is an embedding lookup table for each fixed vocabulary
@@ -405,10 +399,8 @@ class MMT(BertPreTrainedModel):
             dtype=torch.float32,
             device=dec_emb.device
         )
-        concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
-        related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
         encoder_inputs = torch.cat(
-            [txt_emb, related_feat, dec_emb],
+            [txt_emb, obj_emb, ocr_emb, dec_emb],
             dim=1
         )
         attention_mask = torch.cat(
@@ -590,4 +582,3 @@ def _batch_gather(x, inds):
     inds_flat = batch_offsets + inds
     results = F.embedding(inds_flat, x_flat)
     return results
-

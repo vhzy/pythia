@@ -134,7 +134,7 @@ class M4CTextVQADataset(TextVQADataset):
         flag4 = (ocr_y2 <= obj_y).byte()
         out1 = flag1 | flag2
         out2 = flag3 | flag4
-        overlap_flag = torch.ones_like(out1) - (out1 & out2)
+        overlap_flag = torch.ones_like(out1) - (out1 | out2)
         return overlap_flag
 
     def add_sample_details(self, sample_info, sample):

@@ -1,5 +1,5 @@
 dataset_attributes:
-  m4c_textvqa:
+  m4c_stvqa:
       data_root_dir: /raid/lixiangpeng/dataset/textvqa/m4c_data
       image_depth_first: false
       fast_read: false

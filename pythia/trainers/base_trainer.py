@@ -39,7 +39,7 @@ class BaseTrainer:
         registry.register("writer", self.writer)
 
         self.configuration = registry.get("configuration")
-        self.configuration.pretty_print()
+        # self.configuration.pretty_print()
 
         self.config_based_setup()
 
@@ -192,7 +192,7 @@ class BaseTrainer:
 
     def train(self):
         self.writer.write("===== Model =====")
-        self.writer.write(self.model)
+        # self.writer.write(self.model)
 
         if "train" not in self.run_type:
             self.inference()

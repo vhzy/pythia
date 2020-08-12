@@ -1,9 +1,41 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 import torch
 from torch import nn
-
+import torch.nn.functional as F
+from transformers.modeling_bert import BertAttention, BertConfig, BertSelfAttention
 from pythia.modules.layers import GatedTanh, ModalCombineLayer, TransformLayer
 
+class AttFlat(nn.Module):
+    def __init__(self, dim):
+        super(AttFlat, self).__init__()
+        self.mlp = nn.Linear(dim, 1)
+        self.linear_merge = nn.Linear(dim, dim)
+
+    def forward(self, x, x_mask=None): # x: bs x len x dim, x_mask: bs x len
+        att = self.mlp(x) # bs x len x 1
+        if x_mask is not None:
+            #att = att.masked_fill(x_mask.unsqueeze(2), -1e9)
+            x_mask = x_mask.unsqueeze(2)
+            mask_flag = torch.ones_like(x_mask) * {-1e9}
+            att = torch.where(x_mask>0, att, mask_flag)
+
+        att = F.softmax(att, dim=1)
+
+        x_atted = torch.sum(att * x, dim=1)
+        x_atted = self.linear_merge(x_atted)
+
+        return x_atted
+
+class SelfAttention(nn.Module):
+    def __init__(self, dim):
+        super(SelfAttention, self).__init__()
+        cfg = BertConfig(hidden_size=dim, num_hidden_layers=1)
+        self.atten = BertSelfAttention(cfg)
+
+    def forward(self, x, x_mask=None):
+        out = self.atten(x, x_mask)
+        out_avg = out[0].mean(1)
+        return out_avg
 
 class AttentionLayer(nn.Module):
     def __init__(self, image_dim, question_dim, **kwargs):

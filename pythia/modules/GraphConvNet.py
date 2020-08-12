@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import math
 import torch.nn.functional as F
+from pythia.modules.attention import AttFlat, SelfAttention
 
 class GraphConvNet(nn.Module):
     def __init__(self, dim):
@@ -13,7 +14,7 @@ class GraphConvNet(nn.Module):
 
     def forward(self, inputs, adj_mat): # inputs: bs x N x dim  adj_mat: bs x N x N
         y = torch.matmul(adj_mat, self.fc(inputs))
-        return  y
+        return y
 
 class GatedGraphConvNet(nn.Module):
     def __init__(self, dim):
@@ -48,14 +49,13 @@ class MultiStepGGCN(nn.Module):
         return inputs
 
 class BaseGraphAttNet(nn.Module):
-    def __init__(self, args_params):
+    def __init__(self, num_hid, dropout_rate=0.15):
         super(BaseGraphAttNet, self).__init__()
-        num_hid = args_params.num_hid
         self.fc = nn.Linear(num_hid, num_hid)
         self.leaky_relu = nn.LeakyReLU()
         self.q_fc = nn.Linear(num_hid, 1)
         self.k_fc = nn.Linear(num_hid, 1)
-        self.dropout = nn.Dropout(args_params.dropout_rate)
+        self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, feats, adj_mat, residual=True):
         """
@@ -80,12 +80,14 @@ class BaseGraphAttNet(nn.Module):
             output = output + feats
         return output
 
-class GatedGraphAttNet(nn.Module):
-    def __init__(self, config):
-        super(GatedGraphAttNet, self).__init__()
-        self.dim = config.num_hid
-        self.gcn = BaseGraphAttNet(config)
+class MultiHeadGraphAttNet(nn.Module):
+    def __init__(self, dim, n_heads, dropout_r=0.15):
+        super(MultiHeadGraphAttNet, self).__init__()
+        self.dropout = nn.Dropout(dropout_r)
+        self.dim = dim
+        self.attentions = nn.ModuleList([BaseGraphAttNet(dim, dropout_r) for _ in range(n_heads)])
 
+        self.out_att = nn.Linear(dim*n_heads, dim)
         self.fc_u_x = nn.Linear(self.dim, self.dim)
         self.fc_u_y = nn.Linear(self.dim, self.dim)
         self.fc_r_y = nn.Linear(self.dim, self.dim)
@@ -93,74 +95,54 @@ class GatedGraphAttNet(nn.Module):
         self.fc_t_y = nn.Linear(self.dim, self.dim)
         self.fc_t_x = nn.Linear(self.dim, self.dim)
 
-    def forward(self, inputs, adj_mat):  # inputs : bs x N x dim  adj_mat: bs x N x N
-        y = self.gcn(inputs, adj_mat, residual=False)  # bs x N x N * bs x N x dim -> bs x N x dim
-        u = torch.sigmoid(self.fc_u_y(y) + self.fc_u_x(inputs))  #
-        r = torch.sigmoid(self.fc_r_y(y) + self.fc_r_x(inputs))
-        x_tmp = torch.tanh(self.fc_t_y(y) + self.fc_t_x(r * inputs))
-        out = (1 - u) * inputs + u * x_tmp
+    def forward(self, feats, adj_mat):
+        comb_atts = torch.cat([att(feats, adj_mat) for att in self.attentions], dim=-1)
+        logits = self.dropout(comb_atts)
+        y = F.elu(self.out_att(logits))
+
+        u = torch.sigmoid(self.fc_u_y(y) + self.fc_u_x(feats))  #
+        r = torch.sigmoid(self.fc_r_y(y) + self.fc_r_x(feats))
+        x_tmp = torch.tanh(self.fc_t_y(y) + self.fc_t_x(r * feats))
+        out = (1 - u) * feats + u * x_tmp
+
         return out
 
-class MultiHeadGraphAttNet(nn.Module):
-    def __init__(self, dim, dropout_r=0.15):
-        super(MultiHeadGraphAttNet, self).__init__()
-        self.dim = dim
-        self.head_num = 8
+class MHGATLayers(nn.Module):
+    """
+    Multi-Head Graph Attention layers
+    """
+    def __init__(self, dim, n_head, n_layers):
+        super(MHGATLayers, self).__init__()
+        self.layers = nn.ModuleList([MultiHeadGraphAttNet(dim, n_head) for _ in range(n_layers)])
 
-        self.fc = nn.Linear(dim, dim*self.head_num)
-        self.leaky_relu = nn.LeakyReLU()
-        self.q_fc = nn.Linear(self.dim, 1)
-        self.k_fc = nn.Linear(self.dim, 1)
-        self.dropout = nn.Dropout(dropout_r)
+    def forward(self, inp_feat, adj_mat):
+        feats = inp_feat
+        for layer in self.layers:
+            feats = layer(feats, adj_mat)
+        return feats
 
-        self.final_proj = nn.Linear(dim*self.head_num, dim)
+class QuesMHGATLayers(nn.Module):
+    """
+    question-conditioned Multi-Head Graph Attention Layers
+    """
+    def __init__(self, dim, n_head, n_layers):
+        super(QuesMHGATLayers, self).__init__()
+        self.ques_dim = dim
+        self.fc = nn.Linear(dim+dim, dim)
+        self.ques_flat = AttFlat(dim)
+        self.mhgat_layers = MHGATLayers(dim, n_head, n_layers)
 
-    def forward(self, feats, adj_mat, residual=True):
-        bs = feats.size(0)
-        N = feats.size(1)
-        feat_proj = self.fc(feats) # bs x N x (n_head x dim)
+    def forward(self, ques_repr, feat_repr, adj_mat):
 
-        feat_proj = feat_proj.view(bs, N, self.head_num, self.dim).transpose(1, 2) # bs x n_head x N x dim
-        q_feats = self.q_fc(feat_proj) # bs x n_head x N x 1
-        k_feats = self.k_fc(feat_proj) # bs x n_head x N x 1
-        logits = q_feats + torch.transpose(k_feats, 3, 2) # bs x n_head x N x N
+        ques_flat_repr = self.ques_flat(ques_repr).unsqueeze(1)
+        feat_len = feat_repr.size(1)
+        ques_ext_repr = ques_flat_repr.repeat(1, feat_len, 1)
+        feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1)  # bs x N x 2dim
+        feat_proj = self.fc(feat_repr_fc)
+        logits = self.mhgat_layers(feat_proj, adj_mat)
 
-        adj_mask = adj_mat.unsqueeze(1) # bs x 1 x N x N
-        masked_logits = logits + (1.0 - adj_mask)* -1e9
-        masked_logits = self.leaky_relu(masked_logits)
-        atten_value = F.softmax(masked_logits, dim=-1) # bs x n_head x N x N
+        return logits
 
-        atten_value = self.dropout(atten_value)
-        output = torch.matmul(atten_value, feat_proj) # bs x n_head x N x dim
-        output = torch.transpose(output, 1, 2).contiguous() # bs x N x n_head x dim
-        output = output.view(bs, N, self.dim*self.head_num)
-        output = self.final_proj(output)
-
-        if residual:
-            output = output + feats
-        output = torch.sigmoid(output)
-        return output
-
-class AttFlat(nn.Module):
-    def __init__(self, dim):
-        super(AttFlat, self).__init__()
-        self.mlp = nn.Linear(dim, 1)
-        self.linear_merge = nn.Linear(dim, dim)
-
-    def forward(self, x, x_mask=None): # x: bs x len x dim, x_mask: bs x len
-        att = self.mlp(x) # bs x len x 1
-        if x_mask is not None:
-            #att = att.masked_fill(x_mask.unsqueeze(2), -1e9)
-            x_mask = x_mask.unsqueeze(2)
-            mask_flag = torch.ones_like(x_mask) * {-1e9}
-            att = torch.where(x_mask>0, att, mask_flag)
-
-        att = F.softmax(att, dim=1)
-
-        x_atted = torch.sum(att * x, dim=1)
-        x_atted = self.linear_merge(x_atted)
-
-        return x_atted
 
 class QuestionConditionedGAT(nn.Module):
     def __init__(self, dim, dropout_r=0.15):

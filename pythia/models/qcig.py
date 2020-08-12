@@ -15,10 +15,10 @@ from pythia.models.base_model import BaseModel
 from pythia.modules.layers import ClassifierLayer
 
 from pythia.modules.encoders import ImageEncoder
-from pythia.modules.GraphConvNet import QuesMHGATLayers, QuestionConditionedGAT
+from pythia.modules.GraphConvNet import GatedGraphConvNet, BaseGraphAttNet, QuestionConditionedGAT
 
-@registry.register_model("cig")
-class CIG(BaseModel):
+@registry.register_model("qcig")
+class QCIG(BaseModel):
     def __init__(self, config):
         super().__init__(config)
         self.mmt_config = BertConfig(**self.config.mmt)
@@ -139,7 +139,7 @@ class CIG(BaseModel):
         self.ocr_drop = nn.Dropout(self.config.ocr.dropout_prob)
 
     def _build_mmt(self):
-        self.mmt = MMT(self.mmt_config, self.config.gat)
+        self.mmt = MMT(self.mmt_config)
 
         # allow specifying a different/scaled lr for multimodal transformer
         self.finetune_modules.append({
@@ -368,15 +368,14 @@ class TextBert(BertPreTrainedModel):
 
 
 class MMT(BertPreTrainedModel):
-    def __init__(self, config, gat_config):
+    def __init__(self, config):
         super().__init__(config)
 
         self.prev_pred_embeddings = PrevPredEmbeddings(config)
         # self.ggcn = GatedGraphConvNet(768) # 40.47 -- 40.76
         # self.ggcn = MultiHeadGraphAttNet(768) # 39.86
         # self.ggcn = BaseGraphAttNet(768) # 39.57
-        # self.ggcn = QuestionConditionedGAT(768, 0.15) # 40.99
-        self.ggcn = QuesMHGATLayers(config.hidden_size, gat_config.num_gat_heads, gat_config.num_gat_layers)
+        self.ggcn = QuestionConditionedGAT(768, 0.15) # 40.99
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
