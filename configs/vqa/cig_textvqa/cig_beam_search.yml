@@ -1,0 +1,10 @@
+includes:
+- ../configs/vqa/cig_textvqa/cig.yml
+model_attributes:
+  cig:
+    inference:
+      type: beam_search
+      params:
+        beam_length: 5
+training_parameters:
+  batch_size: 128
