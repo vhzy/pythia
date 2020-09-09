@@ -415,7 +415,6 @@ class MMT(BertPreTrainedModel):
         )
 
         # offsets of each modality in the joint embedding space
-        txt_max_num = txt_mask.size(-1)
         obj_max_num = obj_mask.size(-1)
         ocr_max_num = ocr_mask.size(-1)
         dec_max_num = dec_mask.size(-1)
