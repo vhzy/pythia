@@ -453,6 +453,7 @@ class MMT(BertPreTrainedModel):
         )
 
         mmt_seq_output = encoder_outputs[0]
+        mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
         mmt_ocr_output = mmt_seq_output[:, ocr_begin:ocr_end]
         mmt_dec_output = mmt_seq_output[:, -dec_max_num:]
 
