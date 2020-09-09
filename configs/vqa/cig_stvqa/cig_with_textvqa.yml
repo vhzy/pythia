@@ -59,6 +59,10 @@ model_attributes:
     ocr:
       mmt_in_dim: 3002  # 300 (FastText) + 604 (PHOC) + 2048 (Faster R-CNN) + 50 (all zeros; legacy)
       dropout_prob: 0.1
+    gat:
+      num_gat_heads: 8
+      num_gat_layers: 1
+      dropout_prob: 0.1
     mmt:
       hidden_size: 768
       num_hidden_layers: 4
@@ -94,8 +98,9 @@ training_parameters:
     warmup_factor: 0.2
     warmup_iterations: 1000
     max_iterations: 48000
+    seed: 1000
     batch_size: 128
     num_workers: 8
     task_size_proportional_sampling: true
-    monitored_metric: m4c_stvqa/stvqa_accuracy
+    monitored_metric: m4c_stvqa/stvqa_anls
     metric_minimize: false

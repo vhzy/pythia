@@ -61,7 +61,7 @@ model_attributes:
       dropout_prob: 0.1
     gat:
       num_gat_heads: 8
-      num_gat_layers: 2
+      num_gat_layers: 1
       dropout_prob: 0.1
     mmt:
       hidden_size: 768

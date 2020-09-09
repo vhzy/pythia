@@ -94,7 +94,7 @@ training_parameters:
     use_warmup: true
     warmup_factor: 0.2
     warmup_iterations: 1000
-    max_iterations: 24000
+    max_iterations: 48000
     seed: 1000
     batch_size: 128
     num_workers: 8
