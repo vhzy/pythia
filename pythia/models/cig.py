@@ -420,8 +420,8 @@ class MMT(BertPreTrainedModel):
         ocr_max_num = ocr_mask.size(-1)
         dec_max_num = dec_mask.size(-1)
         txt_begin = 0
-        txt_end = txt_begin + txt_max_num
-        ocr_begin = txt_max_num + obj_max_num
+        #txt_end = txt_begin + txt_max_num
+        ocr_begin = obj_max_num
         ocr_end = ocr_begin + ocr_max_num
 
         # We create a 3D attention mask from a 2D tensor mask.
@@ -453,13 +453,13 @@ class MMT(BertPreTrainedModel):
         )
 
         mmt_seq_output = encoder_outputs[0]
-        mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
+        #mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
         mmt_ocr_output = mmt_seq_output[:, ocr_begin:ocr_end]
         mmt_dec_output = mmt_seq_output[:, -dec_max_num:]
 
         results = {
             'mmt_seq_output': mmt_seq_output,
-            'mmt_txt_output': mmt_txt_output,
+            # 'mmt_txt_output': mmt_txt_output,
             'mmt_ocr_output': mmt_ocr_output,
             'mmt_dec_output': mmt_dec_output,
         }
