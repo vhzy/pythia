@@ -4,7 +4,7 @@ import numpy as np
 import argparse
 import math
 import torch.nn.functional as F
-from pythia.modules.attention import AttFlat, SelfAttention
+from pythia.modules.attention import AttFlat, SelfAttention, SoftAttention
 
 class GraphConvNet(nn.Module):
     def __init__(self, dim):
@@ -143,12 +143,44 @@ class QuesMHGATLayers(nn.Module):
 
         return logits
 
+class QVConditionedGAT(nn.Module):
+    def __init__(self, dim, dropout_r=0.15):
+        super(QVConditionedGAT, self).__init__()
+        self.dim = dim
+        self.atten = SoftAttention(dim, dim, dim, dropout_r)
+        self.fc = nn.Linear(2*dim, dim)
+        self.leaky_relu = nn.LeakyReLU()
+        self.q_fc = nn.Linear(dim, 1)
+        self.k_fc = nn.Linear(dim, 1)
+        self.dropout = nn.Dropout(dropout_r)
+
+    def forward(self, ques_repr, feat_repr, adj_mat, residual=True): # bs x N x dim
+        ques_flat_repr = self.atten(ques_repr, feat_repr.sum(1), None).unsqueeze(1) # bs x 1 x dim
+        feat_len = feat_repr.size(1)
+        ques_ext_repr = ques_flat_repr.repeat(1, feat_len, 1) # bs x N x dim
+        feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim
+        feat_proj = self.fc(feat_repr_fc)
+        q_feats = self.q_fc(feat_proj)
+        k_feats = self.k_fc(feat_proj)
+        logits = q_feats + torch.transpose(k_feats, 2, 1)
+
+        # option 1:
+        masked_logits = logits + (1.0 - adj_mat) * -1e9
+        masked_logits = self.leaky_relu(masked_logits)
+        atten_value = F.softmax(masked_logits, dim=-1)
+
+        atten_value = self.dropout(atten_value)
+        output = torch.matmul(atten_value, feat_proj)
+        if residual:
+            output = output + feat_repr
+        return output
+
 
 class QuestionConditionedGAT(nn.Module):
     def __init__(self, dim, dropout_r=0.15):
         super(QuestionConditionedGAT, self).__init__()
         self.dim = dim
-        self.ques_flat = AttFlat(768)
+        self.ques_flat = AttFlat(dim)
         self.fc = nn.Linear(2*dim, dim)
         self.leaky_relu = nn.LeakyReLU()
         self.q_fc = nn.Linear(dim, 1)
@@ -175,6 +207,28 @@ class QuestionConditionedGAT(nn.Module):
         if residual:
             output = output + feat_repr
         return output
+
+class QCGATLayers(nn.Module):
+    def __init__(self, dim, num_gat_layers):
+        super(QCGATLayers, self).__init__()
+        self.num_gat_layers = num_gat_layers
+        self.layers = nn.ModuleList([QuestionConditionedGAT(dim) for _ in range(self.num_gat_layers)])
+
+    def forward(self, ques_repr, feat_repr, adj_mat):
+        for layer in self.layers:
+            feat_repr = layer(ques_repr, feat_repr, adj_mat)
+        return feat_repr
+
+class QVGATLayers(nn.Module):
+    def __init__(self, dim, num_gat_layers):
+        super(QVGATLayers, self).__init__()
+        self.num_gat_layers = num_gat_layers
+        self.layers = nn.ModuleList([QVConditionedGAT(dim) for _ in range(self.num_gat_layers)])
+
+    def forward(self, ques_repr, feat_repr, adj_mat):
+        for layer in self.layers:
+            feat_repr = layer(ques_repr, feat_repr, adj_mat)
+        return feat_repr
 
 if __name__ == '__main__':
     ques_repr = torch.rand(8, 4, 16).cuda()

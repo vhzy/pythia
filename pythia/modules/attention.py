@@ -4,6 +4,8 @@ from torch import nn
 import torch.nn.functional as F
 from transformers.modeling_bert import BertAttention, BertConfig, BertSelfAttention
 from pythia.modules.layers import GatedTanh, ModalCombineLayer, TransformLayer
+from torch.nn.utils.weight_norm import weight_norm
+from pythia.modules.utils import MLP
 
 class AttFlat(nn.Module):
     def __init__(self, dim):
@@ -64,6 +66,30 @@ class AttentionLayer(nn.Module):
 
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
+
+class SoftAttention(nn.Module):
+    def __init__(self, inp_dim1, inp_dim2, inter_hid, dropout_p):
+        super(SoftAttention, self).__init__()
+        self.inp1_proj = MLP(inp_dim1, inter_hid, inter_hid, dropout_r=dropout_p)
+        self.inp2_proj = MLP(inp_dim2, inter_hid, inter_hid, dropout_r=dropout_p)
+        self.dropout_l = nn.Dropout(dropout_p)
+        self.linear = weight_norm(nn.Linear(inter_hid, 1), dim=None)
+
+    def forward(self, inp1, inp2, inp1_mask=None):
+        # inp1: bs x len x dim1, mask: bs x len
+        # inp2: bs x dim2
+        s_len = inp1.size(1)
+        inp1_proj = self.inp1_proj(inp1) # bs x len x dim
+        inp2_proj = self.inp2_proj(inp2) # bs x dim
+        inp2_proj = inp2_proj.unsqueeze(1).repeat(1, s_len, 1)
+        joint_repr = inp1_proj * inp2_proj
+        joint_repr = self.dropout_l(joint_repr)
+        logits = self.linear(joint_repr)
+        if inp1_mask is not None:
+            logits = logits + (1.0 - inp1_mask.unsqueeze(2)) * -1e9
+        weights = nn.functional.softmax(logits, 1)
+        weighted_inp1 = (inp1 * weights + inp1).sum(1)
+        return weighted_inp1
 
 
 class ConcatenationAttention(nn.Module):

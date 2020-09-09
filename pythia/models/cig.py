@@ -15,7 +15,7 @@ from pythia.models.base_model import BaseModel
 from pythia.modules.layers import ClassifierLayer
 
 from pythia.modules.encoders import ImageEncoder
-from pythia.modules.GraphConvNet import QuesMHGATLayers, QuestionConditionedGAT
+from pythia.modules.GraphConvNet import QuesMHGATLayers, QuestionConditionedGAT, QCGATLayers, QVGATLayers
 
 @registry.register_model("cig")
 class CIG(BaseModel):
@@ -372,11 +372,8 @@ class MMT(BertPreTrainedModel):
         super().__init__(config)
 
         self.prev_pred_embeddings = PrevPredEmbeddings(config)
-        # self.ggcn = GatedGraphConvNet(768) # 40.47 -- 40.76
-        # self.ggcn = MultiHeadGraphAttNet(768) # 39.86
-        # self.ggcn = BaseGraphAttNet(768) # 39.57
-        # self.ggcn = QuestionConditionedGAT(768, 0.15) # 40.99
-        self.ggcn = QuesMHGATLayers(config.hidden_size, gat_config.num_gat_heads, gat_config.num_gat_layers)
+        # self.ggcn = QCGATLayers(config.hidden_size, gat_config.num_gat_layers) #
+        self.ggcn = QVGATLayers(config.hidden_size, gat_config.num_gat_layers)  #
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
@@ -409,11 +406,11 @@ class MMT(BertPreTrainedModel):
         concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
         related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
         encoder_inputs = torch.cat(
-            [txt_emb, related_feat, dec_emb],
+            [related_feat, dec_emb],
             dim=1
         )
         attention_mask = torch.cat(
-            [txt_mask, obj_mask, ocr_mask, dec_mask],
+            [obj_mask, ocr_mask, dec_mask],
             dim=1
         )
 
