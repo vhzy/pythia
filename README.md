@@ -16,13 +16,13 @@ training_parameters.distributed True
 
 # alternative: Data Parallel (slower, but results should be the same)
 python tools/run.py --tasks vqa --datasets m4c_textvqa --model tig \
---config configs/vqa/cig_textvqa/tig.yml \
+--config configs/vqa/tig_textvqa/tig.yml \
 --save_dir save/tig \
 training_parameters.data_parallel True
 ```
-(Replace `tig_textvqa` with other datasets and `configs/vqa/cig_textvqa/cig.yml` with other config files to train with other datasets and configurations. See the table above. You can also specify a different path to `--save_dir` to save to a location you prefer.)
+(Replace `tig_textvqa` with other datasets and `configs/vqa/tig_textvqa/tig.yml` with other config files to train with other datasets and configurations. See the table above. You can also specify a different path to `--save_dir` to save to a location you prefer.)
 
-2) to evaluate the pretrained TIG model locally on the TextVQA validation set (assuming the pretrained model is downloaded to `data/models/cig_textvqa_m4c.ckpt`):
+2) to evaluate the pretrained TIG model locally on the TextVQA validation set (assuming the pretrained model is downloaded to `data/models/tig_textvqa_m4c.ckpt`):
 ```
 python tools/run.py --tasks vqa --datasets m4c_textvqa --model tig \
 --config configs/vqa/tig_textvqa/tig.yml \
