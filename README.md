@@ -1,7 +1,6 @@
 
 
-Pythia is a modular framework for vision and language multimodal research. Built on top
-of PyTorch, it features:
+Pythia is a modular framework for vision and language multimodal research. We fork this framework: https://github.com/ronghanghu/pythia
 
 
 # run tig model
