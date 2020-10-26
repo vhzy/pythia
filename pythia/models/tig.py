@@ -17,8 +17,8 @@ from pythia.modules.layers import ClassifierLayer
 from pythia.modules.encoders import ImageEncoder
 from pythia.modules.GraphConvNet import QuesMHGATLayers, QuestionConditionedGAT, QCGATLayers, QVGATLayers
 
-@registry.register_model("cig")
-class CIG(BaseModel):
+@registry.register_model("tig")
+class TIG(BaseModel):
     def __init__(self, config):
         super().__init__(config)
         self.mmt_config = BertConfig(**self.config.mmt)
