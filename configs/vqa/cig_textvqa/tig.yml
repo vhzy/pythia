@@ -1,5 +1,5 @@
 includes:
-- common/defaults/configs/datasets/vqa/cig_textvqa.yml
+- common/defaults/configs/datasets/vqa/tig_textvqa.yml
 # Use soft copy
 dataset_attributes:
   m4c_textvqa:
