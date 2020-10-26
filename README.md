@@ -3,7 +3,7 @@
 Pythia is a modular framework for vision and language multimodal research. We fork this framework: https://github.com/ronghanghu/pythia
 
 
-# run tig model
+# run TIG model
 1) to train the M4C model on the TextVQA training set:
 ```
 # Distributed Data Parallel (on a 4-GPU machine)
