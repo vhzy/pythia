@@ -1,0 +1,28 @@
+2022-02-15T14:56:19 INFO: Loading datasets
+2022-02-15T14:56:22 INFO: Fetching fastText model for OCR processing
+2022-02-15T14:56:22 INFO: Loading fasttext model now from /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin
+2022-02-15T14:56:42 INFO: Finished loading fasttext model
+2022-02-15T14:56:49 INFO: CUDA Device 0 is: TITAN X (Pascal)
+2022-02-15T14:56:55 INFO: Torch version is: 1.6.0+cu101
+2022-02-15T14:56:55 INFO: ===== Model =====
+2022-02-15T14:56:55 INFO: Starting training...
+2022-02-15T14:56:57 ERROR: Caught RuntimeError in replica 0 on device 0.
+Original Traceback (most recent call last):
+  File "/home/ubuntu/anaconda3/envs/textvqa/lib/python3.8/site-packages/torch/nn/parallel/parallel_apply.py", line 60, in _worker
+    output = module(*input, **kwargs)
+  File "/home/ubuntu/hzy/pythia/pythia/models/base_model.py", line 120, in __call__
+    model_output = super().__call__(sample_list, *args, **kwargs)
+  File "/home/ubuntu/anaconda3/envs/textvqa/lib/python3.8/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/ubuntu/hzy/pythia/pythia/models/tig.py", line 177, in forward
+    self._forward_mmt_and_output(sample_list, fwd_results)
+  File "/home/ubuntu/hzy/pythia/pythia/models/tig.py", line 298, in _forward_mmt_and_output
+    self._forward_mmt(sample_list, fwd_results)
+  File "/home/ubuntu/hzy/pythia/pythia/models/tig.py", line 270, in _forward_mmt
+    mmt_results = self.mmt(
+  File "/home/ubuntu/anaconda3/envs/textvqa/lib/python3.8/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/ubuntu/hzy/pythia/pythia/models/tig.py", line 412, in forward
+    attention_mask = torch.cat(
+RuntimeError: Tensors must have same number of dimensions: got 2 and 3
+

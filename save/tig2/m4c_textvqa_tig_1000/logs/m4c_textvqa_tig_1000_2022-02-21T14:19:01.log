@@ -1,0 +1,3 @@
+2022-02-21T14:19:01 INFO: Loading datasets
+2022-02-21T14:19:07 INFO: Fetching fastText model for OCR processing
+2022-02-21T14:19:07 INFO: Loading fasttext model now from /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin

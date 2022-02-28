@@ -1,0 +1,9 @@
+nvidsi2022-02-15T10:13:13 INFO: Loading datasets
+2022-02-15T10:13:15 INFO: Fetching fastText model for OCR processing
+2022-02-15T10:13:15 INFO: Loading fasttext model now from /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin
+2022-02-15T10:13:35 INFO: Finished loading fasttext model
+2022-02-15T10:13:42 INFO: CUDA Device 0 is: TITAN X (Pascal)
+2022-02-15T10:13:49 INFO: Torch version is: 1.6.0+cu101
+2022-02-15T10:13:49 INFO: ===== Model =====
+2022-02-15T10:13:49 INFO: Starting training...
+2022-02-15T10:16:16 ERROR: CUDA out of memory. Tried to allocate 90.00 MiB (GPU 1; 11.91 GiB total capacity; 70.81 MiB already allocated; 78.06 MiB free; 94.00 MiB reserved in total by PyTorch)

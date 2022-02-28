@@ -8,7 +8,7 @@ from pythia.utils.build_utils import build_trainer
 from pythia.utils.distributed_utils import is_main_process
 from pythia.utils.flags import flags
 import torch
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 def setup_imports():
     # Automatically load all of the modules, so that

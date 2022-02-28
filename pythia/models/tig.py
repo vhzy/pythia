@@ -56,7 +56,7 @@ class TIG(BaseModel):
         # if the text bert output dimension doesn't match the
         # multimodal transformer (mmt) hidden dimension,
         # add a linear projection layer between the two
-        if self.mmt_config.hidden_size != TEXT_BERT_HIDDEN_SIZE:
+        if self.mmt_config.hidden_size != TEXT_BERT_HIDDEN_SIZE:      #也是768，所以就不用线性层映射
             self.writer.write(
                 'Projecting text_bert output to {} dim'.format(
                     self.mmt_config.hidden_size
@@ -66,7 +66,7 @@ class TIG(BaseModel):
                 TEXT_BERT_HIDDEN_SIZE, self.mmt_config.hidden_size
             )
         else:
-            self.text_bert_out_linear = nn.Identity()
+            self.text_bert_out_linear = nn.Identity()                 #维度一样的话，直接用原来的映射就行
 
     def _build_obj_encoding(self):
         # object appearance feature: Faster R-CNN
@@ -278,6 +278,7 @@ class TIG(BaseModel):
             prev_inds=fwd_results['prev_inds'],
             overlap_flag = sample_list.overlap_flag,
         )
+        #print("overlap_flag:",sample_list.overlap_flag[:10,:10],"\n")
         fwd_results.update(mmt_results)
 
     def _forward_output(self, sample_list, fwd_results):
@@ -392,7 +393,7 @@ class MMT(BertPreTrainedModel):
         # build embeddings for predictions in previous decoding steps
         # fixed_ans_emb is an embedding lookup table for each fixed vocabulary
         dec_emb = self.prev_pred_embeddings(fixed_ans_emb, ocr_emb, prev_inds)
-
+        #print("txt_emb_size",txt_emb.size(),"\n")
         # a zero mask for decoding steps, so the encoding steps elements can't
         # attend to decoding steps.
         # A triangular causal mask will be filled for the decoding steps
@@ -404,13 +405,20 @@ class MMT(BertPreTrainedModel):
             device=dec_emb.device
         )
         concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
+        '''
+        print("obj_emb_size",obj_emb.size(),"\n")
+        print("ocr_emb_size",ocr_emb.size(),"\n")
+        print("concated_feat_size",concated_feat.size(),"\n")
+        print("dec_emb_size",dec_emb.size(),"\n")
+        '''
         related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
         encoder_inputs = torch.cat(
             [txt_emb, related_feat, dec_emb],
             dim=1
         )
+
         attention_mask = torch.cat(
-            [txt_emb, obj_mask, ocr_mask, dec_mask],
+            [txt_mask, obj_mask, ocr_mask, dec_mask],
             dim=1
         )
 

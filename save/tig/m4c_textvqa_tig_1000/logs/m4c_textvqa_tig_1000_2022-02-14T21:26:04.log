@@ -1,0 +1,14 @@
+2022-02-14T21:26:04 INFO: Loading datasets
+2022-02-14T21:26:07 INFO: Fetching fastText model for OCR processing
+2022-02-14T21:26:07 WARNING: /home/ubuntu/hzy/pythia/pythia/datasets/processors.py:402: UserWarning: No model file present at /home/ubuntu/hzy/pythia/models/.vector_cache/wiki.en.bin.
+  warnings.warn("No model file present at {}.".format(model_file))
+
+2022-02-14T21:26:07 INFO: Downloading FastText bin
+2022-02-14T21:26:07 INFO: Vectors already present at /home/ubuntu/hzy/pythia/pythia/.vector_cache/wiki.en.bin.
+2022-02-14T21:26:07 INFO: Loading fasttext model now from /home/ubuntu/hzy/pythia/pythia/.vector_cache/wiki.en.bin
+2022-02-14T21:27:01 INFO: Finished loading fasttext model
+2022-02-14T21:27:08 INFO: CUDA Device 3 is: TITAN X (Pascal)
+2022-02-14T21:27:08 INFO: CUDA Device 0 is: TITAN X (Pascal)
+2022-02-14T21:27:08 INFO: Torch version is: 1.6.0+cu101
+2022-02-14T21:27:08 INFO: CUDA Device 2 is: TITAN X (Pascal)
+2022-02-14T21:27:09 INFO: CUDA Device 1 is: TITAN X (Pascal)

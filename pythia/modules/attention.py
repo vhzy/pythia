@@ -36,7 +36,8 @@ class SelfAttention(nn.Module):
 
     def forward(self, x, x_mask=None):
         out = self.atten(x, x_mask)
-        out_avg = out[0].mean(1)
+        #out_avg = out[0].mean(1)
+        out_avg = out[0]
         return out_avg
 
 class AttentionLayer(nn.Module):

@@ -1,0 +1,5 @@
+2022-02-15T16:42:31 INFO: Loading datasets
+2022-02-15T16:42:34 INFO: Fetching fastText model for OCR processing
+2022-02-15T16:42:34 INFO: Loading fasttext model now from /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin
+2022-02-15T16:42:55 INFO: Finished loading fasttext model
+2022-02-15T16:43:02 ERROR: [Errno 2] No such file or directory: '/raid/lixiangpeng/dataset/textvqa/m4c_data/detectron/fc6/fc7_w.pkl'

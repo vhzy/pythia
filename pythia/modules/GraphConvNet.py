@@ -5,6 +5,8 @@ import argparse
 import math
 import torch.nn.functional as F
 from pythia.modules.attention import AttFlat, SelfAttention, SoftAttention
+import sys
+sys.path.append("/home/ubuntu/hzy/pythia/pythia/modules")
 
 class GraphConvNet(nn.Module):
     def __init__(self, dim):
@@ -158,16 +160,16 @@ class QVConditionedGAT(nn.Module):
         ques_flat_repr = self.atten(ques_repr, feat_repr.sum(1), None).unsqueeze(1) # bs x 1 x dim
         feat_len = feat_repr.size(1)
         ques_ext_repr = ques_flat_repr.repeat(1, feat_len, 1) # bs x N x dim
-        feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim
-        feat_proj = self.fc(feat_repr_fc)
+        feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim  公式8
+        feat_proj = self.fc(feat_repr_fc) # 公式9
         q_feats = self.q_fc(feat_proj)
         k_feats = self.k_fc(feat_proj)
         logits = q_feats + torch.transpose(k_feats, 2, 1)
 
         # option 1:
         masked_logits = logits + (1.0 - adj_mat) * -1e9
-        masked_logits = self.leaky_relu(masked_logits)
-        atten_value = F.softmax(masked_logits, dim=-1)
+        masked_logits = self.leaky_relu(masked_logits)    #公式10
+        atten_value = F.softmax(masked_logits, dim=-1)    #公式11
 
         atten_value = self.dropout(atten_value)
         output = torch.matmul(atten_value, feat_proj)
@@ -194,11 +196,18 @@ class QuestionConditionedGAT(nn.Module):
         feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim
         feat_proj = self.fc(feat_repr_fc)
         q_feats = self.q_fc(feat_proj)
+        print("q_feats",q_feats.size())
+        print(q_feats)
         k_feats = self.k_fc(feat_proj)
+        print("k_feats",k_feats.size())
+        print(k_feats)
         logits = q_feats + torch.transpose(k_feats, 2, 1)
-
+        print("logits",logits.size())
+        print(logits)
         # option 1:
         masked_logits = logits + (1.0 - adj_mat) * -1e9
+        print("masked_logits",masked_logits.size())
+        print(masked_logits)
         masked_logits = self.leaky_relu(masked_logits)
         atten_value = F.softmax(masked_logits, dim=-1)
 

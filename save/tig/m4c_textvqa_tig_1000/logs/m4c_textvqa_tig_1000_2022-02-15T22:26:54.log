@@ -1,0 +1,12 @@
+2022-02-15T22:26:54 INFO: Loading datasets
+2022-02-15T22:26:57 INFO: Fetching fastText model for OCR processing
+2022-02-15T22:26:57 INFO: Loading fasttext model now from /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin
+2022-02-15T22:27:28 INFO: Finished loading fasttext model
+2022-02-15T22:27:37 INFO: CUDA Device 1 is: TITAN X (Pascal)
+2022-02-15T22:27:38 INFO: CUDA Device 3 is: TITAN X (Pascal)
+2022-02-15T22:27:38 INFO: CUDA Device 0 is: TITAN X (Pascal)
+2022-02-15T22:27:38 INFO: Torch version is: 1.6.0+cu101
+2022-02-15T22:27:38 INFO: CUDA Device 2 is: TITAN X (Pascal)
+2022-02-15T22:27:39 INFO: ===== Model =====
+2022-02-15T22:27:39 INFO: Starting training...
+2022-02-15T22:28:21 ERROR: Tensors must have same number of dimensions: got 2 and 3

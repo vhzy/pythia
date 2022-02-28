@@ -1,0 +1,14 @@
+!*.py
+*.txt
+!*.yml
+*.npy
+*.pkl
+*.pth
+*.pyc
+*.zc
+*.ckpt
+*.bin
+*.gz
+*.tar
+*.tar.gz
+*.log

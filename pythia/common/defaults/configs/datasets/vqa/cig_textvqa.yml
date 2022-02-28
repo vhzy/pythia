@@ -1,6 +1,6 @@
 dataset_attributes:
   m4c_textvqa:
-      data_root_dir: /raid/lixiangpeng/dataset/textvqa/m4c_data
+      data_root_dir: /home/ubuntu/hzy/pythia/data
       image_depth_first: false
       fast_read: false
       features_max_len: 100
@@ -9,7 +9,7 @@ dataset_attributes:
           type: fasttext
           params:
             max_length: 50
-            model_file: /raid/lixiangpeng/models/.vector_cache/wiki.en.bin
+            model_file: /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin
         ocr_token_processor:
           type: simple_word
           params: {}
