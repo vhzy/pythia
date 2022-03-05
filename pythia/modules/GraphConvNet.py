@@ -165,6 +165,8 @@ class QVConditionedGAT(nn.Module):
         q_feats = self.q_fc(feat_proj)
         k_feats = self.k_fc(feat_proj)
         logits = q_feats + torch.transpose(k_feats, 2, 1)
+        #print("adj_mat:",adj_mat.size())
+        #print("logits:",logits.size())
 
         # option 1:
         masked_logits = logits + (1.0 - adj_mat) * -1e9

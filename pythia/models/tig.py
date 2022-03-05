@@ -129,14 +129,25 @@ class TIG(BaseModel):
             self.config.ocr.mmt_in_dim, self.mmt_config.hidden_size
         )
 
+        self.linear_ocr_visual_feat_to_mmt_in  = nn.Linear(
+            self.config.ocr.visual_mmt_in_dim, self.mmt_config.hidden_size
+        )
+
+        self.linear_ocr_semantic_feat_to_mmt_in = nn.Linear(
+            self.config.ocr.semantic_mmt_in_dim, self.mmt_config.hidden_size
+        )
         # OCR location feature: relative bounding box coordinates (4-dim)
         self.linear_ocr_bbox_to_mmt_in = nn.Linear(
             4, self.mmt_config.hidden_size
         )
 
         self.ocr_feat_layer_norm = BertLayerNorm(self.mmt_config.hidden_size)
+        self.ocr_visual_feat_layer_norm = BertLayerNorm(self.mmt_config.hidden_size)
         self.ocr_bbox_layer_norm = BertLayerNorm(self.mmt_config.hidden_size)
+        self.ocr_semantic_feat_layer_norm = BertLayerNorm(self.mmt_config.hidden_size)
         self.ocr_drop = nn.Dropout(self.config.ocr.dropout_prob)
+        self.ocr_visual_drop = nn.Dropout(self.config.ocr.dropout_prob)
+        self.ocr_semantic_drop = nn.Dropout(self.config.ocr.dropout_prob)
 
     def _build_mmt(self):
         self.mmt = MMT(self.mmt_config, self.config.gat)
@@ -166,7 +177,7 @@ class TIG(BaseModel):
         self.answer_processor = registry.get(
             self._datasets[0] + "_answer_processor"
         )
-
+        self.linear_joint = nn.Linear(self.mmt_config.hidden_size*3,self.mmt_config.hidden_size)
     def forward(self, sample_list):
         # fwd_results holds intermediate forward pass results
         # TODO possibly replace it with another sample list
@@ -240,6 +251,15 @@ class TIG(BaseModel):
             [ocr_fasttext, ocr_phoc, ocr_fc7, ocr_order_vectors],
             dim=-1
         )
+
+        ocr_semantic_feat = torch.cat(
+            [ocr_fasttext, ocr_phoc],
+            dim=-1
+        )
+        ocr_visual_feat = ocr_fc7
+
+
+
         ocr_bbox = sample_list.ocr_bbox_coordinates
         if self.remove_ocr_semantics:
             ocr_feat = torch.zeros_like(ocr_feat)
@@ -255,6 +275,24 @@ class TIG(BaseModel):
         ocr_mmt_in = self.ocr_drop(ocr_mmt_in)
         fwd_results['ocr_mmt_in'] = ocr_mmt_in
 
+        ocr_visual = (
+            self.ocr_visual_feat_layer_norm(
+                self.linear_ocr_visual_feat_to_mmt_in(ocr_visual_feat)
+            ) + self.ocr_bbox_layer_norm(
+                self.linear_ocr_bbox_to_mmt_in(ocr_bbox)
+            )
+        )
+
+        ocr_semantic = self.ocr_semantic_feat_layer_norm(
+            self.linear_ocr_semantic_feat_to_mmt_in(ocr_semantic_feat)+ self.ocr_bbox_layer_norm(
+                self.linear_ocr_bbox_to_mmt_in(ocr_bbox)
+            )
+        ) 
+        ocr_visual = self.ocr_visual_drop(ocr_visual)
+        ocr_semantic = self.ocr_semantic_drop(ocr_semantic)
+        fwd_results['ocr_visual'] = ocr_visual
+        fwd_results['ocr_semantic'] = ocr_semantic
+
         # binary mask of valid OCR vs padding
         ocr_nums = sample_list.context_info_0.max_features
         fwd_results['ocr_mask'] = _get_mask(ocr_nums, ocr_mmt_in.size(1))
@@ -267,6 +305,13 @@ class TIG(BaseModel):
         )
         fwd_results['txt_emb'] = self.text_bert_out_linear(text_bert_out)
 
+        ocr_visual=fwd_results['ocr_visual']
+        #ocr_visual_mask = torch.ones(ocr_visual.size(0),ocr_visual.size(1),dtype=torch.float32,device=ocr_visual.device)
+        ocr_visual_mask = fwd_results['ocr_mask']
+        ocr_semantic=fwd_results['ocr_semantic']
+        #ocr_semantic_mask = torch.ones(ocr_semantic.size(0),ocr_semantic.size(1),dtype=torch.float32,device=ocr_semantic.device)
+        ocr_semantic_mask = fwd_results['ocr_mask']
+
         mmt_results = self.mmt(
             txt_emb=fwd_results['txt_emb'],
             txt_mask=fwd_results['txt_mask'],
@@ -274,6 +319,11 @@ class TIG(BaseModel):
             obj_mask=fwd_results['obj_mask'],
             ocr_emb=fwd_results['ocr_mmt_in'],
             ocr_mask=fwd_results['ocr_mask'],
+
+            ocr_visual=ocr_visual,
+            ocr_visual_mask = ocr_visual_mask,
+            ocr_semantic=ocr_semantic,
+            ocr_semantic_mask=ocr_semantic_mask,
             fixed_ans_emb=self.classifier.module.weight,
             prev_inds=fwd_results['prev_inds'],
             overlap_flag = sample_list.overlap_flag,
@@ -282,13 +332,23 @@ class TIG(BaseModel):
         fwd_results.update(mmt_results)
 
     def _forward_output(self, sample_list, fwd_results):
+        ocr_visual = fwd_results['mmt_ocr_visual_output']
+        ocr_visual = ocr_visual.mean(1).unsqueeze(1)
+        ocr_semantic = fwd_results['mmt_ocr_semantic_output']
+        ocr_semantic = ocr_semantic.mean(1).unsqueeze(1)
+        obj = fwd_results['mmt_obj_output']
+        obj  = obj .mean(1).unsqueeze(1)
+        update_joint_embedding = torch.cat((ocr_visual, ocr_semantic, obj),dim=-1) # torch.Size([32, 1, 1536])
+        update_joint_embedding = self.linear_joint(update_joint_embedding)
+
         mmt_dec_output = fwd_results['mmt_dec_output']
+        score_feature = torch.cat([update_joint_embedding, mmt_dec_output[:,1:,:]], dim=-2)
         mmt_ocr_output = fwd_results['mmt_ocr_output']
         ocr_mask = fwd_results['ocr_mask']
 
-        fixed_scores = self.classifier(mmt_dec_output)
+        fixed_scores = self.classifier(score_feature)
         dynamic_ocr_scores = self.ocr_ptr_net(
-            mmt_dec_output, mmt_ocr_output, ocr_mask
+            score_feature, mmt_ocr_output, ocr_mask
         )
         scores = torch.cat([fixed_scores, dynamic_ocr_scores], dim=-1)
         fwd_results['scores'] = scores
@@ -386,6 +446,10 @@ class MMT(BertPreTrainedModel):
                 obj_mask,
                 ocr_emb,
                 ocr_mask,
+                ocr_visual,
+                ocr_visual_mask,
+                ocr_semantic,
+                ocr_semantic_mask,
                 fixed_ans_emb,
                 prev_inds,
                 overlap_flag,):
@@ -404,21 +468,30 @@ class MMT(BertPreTrainedModel):
             dtype=torch.float32,
             device=dec_emb.device
         )
-        concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
+       # concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
+
+        visual_nodes = torch.cat([obj_emb,ocr_visual],dim=1)
+        semantic_nodes = ocr_semantic
+
+
         '''
         print("obj_emb_size",obj_emb.size(),"\n")
         print("ocr_emb_size",ocr_emb.size(),"\n")
         print("concated_feat_size",concated_feat.size(),"\n")
         print("dec_emb_size",dec_emb.size(),"\n")
         '''
-        related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
+       # related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
+        visual_related_feat = self.ggcn(txt_emb, visual_nodes, overlap_flag)
+        semantic_related_feat = self.ggcn(txt_emb, semantic_nodes, overlap_flag[:,100:, 100:] )
+        #在这里做MMGNN的操作
+        related_feat = torch.cat([visual_related_feat,semantic_related_feat],dim=1)
         encoder_inputs = torch.cat(
-            [txt_emb, related_feat, dec_emb],
+            [txt_emb, related_feat,ocr_emb, dec_emb],
             dim=1
         )
 
-        attention_mask = torch.cat(
-            [txt_mask, obj_mask, ocr_mask, dec_mask],
+        attention_mask   = torch.cat(
+            [txt_mask, obj_mask,ocr_visual_mask, ocr_semantic_mask,ocr_mask,dec_mask],
             dim=1
         )
 
@@ -426,11 +499,19 @@ class MMT(BertPreTrainedModel):
         txt_max_num = txt_mask.size(-1)
         obj_max_num = obj_mask.size(-1)
         ocr_max_num = ocr_mask.size(-1)
+        ocr_visual_max_num = ocr_visual_mask.size(-1)
+        ocr_semantic_max_num = ocr_semantic_mask.size(-1)
         dec_max_num = dec_mask.size(-1)
         txt_begin = 0
         txt_end = txt_begin + txt_max_num
-        ocr_begin = obj_max_num + txt_end
-        ocr_end = ocr_begin + ocr_max_num
+        obj_begin = txt_max_num
+        obj_end = obj_begin + obj_max_num
+        ocr_visual_begin = txt_max_num + obj_max_num
+        ocr_visual_end = ocr_visual_begin + ocr_visual_max_num
+        ocr_semantic_begin = txt_max_num + obj_max_num + ocr_visual_max_num
+        ocr_semantic_end = ocr_semantic_begin + ocr_semantic_max_num
+        ocr_begin = txt_max_num + obj_max_num + ocr_visual_max_num +ocr_semantic_max_num
+        ocr_end =  ocr_begin + ocr_max_num
 
         # We create a 3D attention mask from a 2D tensor mask.
         # Sizes are [batch_size, 1, from_seq_length, to_seq_length]
@@ -462,12 +543,22 @@ class MMT(BertPreTrainedModel):
 
         mmt_seq_output = encoder_outputs[0]
         mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
+        mmt_obj_output = mmt_seq_output[:, obj_begin:obj_end]
+        mmt_ocr_visual_output = mmt_seq_output[:, ocr_visual_begin:ocr_visual_end]
+        mmt_ocr_semantic_output = mmt_seq_output[:, ocr_semantic_begin:ocr_semantic_end]
         mmt_ocr_output = mmt_seq_output[:, ocr_begin:ocr_end]
         mmt_dec_output = mmt_seq_output[:, -dec_max_num:]
+
+        #print("mmt_ocr_visual_output:",mmt_ocr_visual_output.size())
+        #print("mmt_ocr_semantic_output:",mmt_ocr_semantic_output.size())
+        #print("mmt_obj_output:",mmt_obj_output.size())
 
         results = {
             'mmt_seq_output': mmt_seq_output,
             'mmt_txt_output': mmt_txt_output,
+            'mmt_obj_output': mmt_obj_output,
+            'mmt_ocr_visual_output': mmt_ocr_visual_output,
+            'mmt_ocr_semantic_output': mmt_ocr_semantic_output,
             'mmt_ocr_output': mmt_ocr_output,
             'mmt_dec_output': mmt_dec_output,
         }
@@ -567,7 +658,7 @@ class PrevPredEmbeddings(nn.Module):
 def _get_mask(nums, max_num):
     # non_pad_mask: b x lq, torch.float32, 0. on PAD
     batch_size = nums.size(0)
-    arange = torch.arange(0, max_num).unsqueeze(0).expand(batch_size, -1)
+    arange = torch.arange(0, max_num).unsqueeze(0).expand(batch_size, -1)#unsqueeze(0)增加一个维度留给batch_size
     non_pad_mask = arange.to(nums.device).lt(nums.unsqueeze(-1))
     non_pad_mask = non_pad_mask.type(torch.float32)
     return non_pad_mask
