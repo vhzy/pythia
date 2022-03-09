@@ -43,6 +43,11 @@ dataset_attributes:
           params:
             max_length: 50
             model_file: .vector_cache/wiki.en.bin
+        obj_context_processor:
+          type: fasttext
+          params:
+            max_length: 100
+            model_file: .vector_cache/wiki.en.bin
         ocr_token_processor:
           type: simple_word
           params: {}

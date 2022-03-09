@@ -14,6 +14,8 @@ class M4CTextVQADataset(TextVQADataset):
             dataset_type, imdb_file_index, config, *args, **kwargs
         )
         self._name = "m4c_textvqa"
+        self.object_clsname = [x.strip() for x in list(open('/home/ubuntu/hzy/pythia/data/objects_vocab.txt','r'))]
+        self.object_clsname = ['background'] + self.object_clsname
 
     def preprocess_sample_info(self, sample_info):
         return sample_info  # Do nothing
@@ -80,6 +82,9 @@ class M4CTextVQADataset(TextVQADataset):
 
         if self._use_features is True:
             features = self.features_db[idx]
+            if 'object_tokens' not in features['image_info_0']:
+                features['image_info_0']['object_tokens'] = \
+                    [self.object_clsname[x] for x in features['image_info_0']['objects']] #object_tokens是一个列表，里面是这张图片里面的物体的字符串，
             current_sample.update(features)
 
         current_sample = self.add_sample_details(sample_info, current_sample)
@@ -93,15 +98,28 @@ class M4CTextVQADataset(TextVQADataset):
         for k in list(current_sample.image_info_1):
             if k != 'max_features':
                 current_sample.image_info_1.pop(k)
-        overlap_flag = torch.zeros(150, 150)
-        obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
-        ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
+        visual_overlap_flag = torch.zeros(150, 150)
+        semantic_overlap_flag = torch.zeros(150, 150)
+        visual_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
+        semantic_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.objlabel_feature_0, current_sample.objlabel_feature_0)
+        visual_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.image_feature_1[:50,:], current_sample.image_feature_1[:50,:])
+        semantic_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
+        #print("visual_obj_obj_relation:",visual_obj_obj_relation.size())
+        #print("semantic_obj_obj_relation:",semantic_obj_obj_relation.size())
+        #print("visual_ocr_ocr_relation:",visual_ocr_ocr_relation.size())
+        #print("semantic_ocr_ocr_relation:",semantic_ocr_ocr_relation.size())
+        #print(current_sample.image_feature_1.size())
         obj_ocr_relation = self.overlap(current_sample.obj_bbox_coordinates, current_sample.ocr_bbox_coordinates)
-        overlap_flag[:100, :100] = obj_obj_relation
-        overlap_flag[100:, 100:] = ocr_ocr_relation
-        overlap_flag[:100, 100:] = obj_ocr_relation
-        overlap_flag[100:, :100] = obj_ocr_relation.transpose(1, 0)
-        current_sample.overlap_flag = overlap_flag
+        visual_overlap_flag[:100, :100] = visual_obj_obj_relation
+        visual_overlap_flag[100:, 100:] = visual_ocr_ocr_relation
+        semantic_overlap_flag[:100, :100] = semantic_obj_obj_relation
+        semantic_overlap_flag[100:, 100:] = semantic_ocr_ocr_relation
+        visual_overlap_flag[:100, 100:] = obj_ocr_relation
+        visual_overlap_flag[100:, :100] = obj_ocr_relation.transpose(1, 0)
+        semantic_overlap_flag[:100, 100:] = obj_ocr_relation
+        semantic_overlap_flag[100:, :100] = obj_ocr_relation.transpose(1, 0)
+        current_sample.visual_overlap_flag = visual_overlap_flag
+        current_sample.semantic_overlap_flag = semantic_overlap_flag
         return current_sample
 
     def compute_similarity_by_cosine(self, x, y):
@@ -156,6 +174,19 @@ class M4CTextVQADataset(TextVQADataset):
             {"blob": sample_info["obj_normalized_boxes"]}
         )["blob"]
 
+        obj_tokens = [
+            self.ocr_token_processor({"text": token})["text"]
+            for token in sample['image_info_0']["object_tokens"]]
+       #print(obj_tokens)    
+        # Get FastText embeddings for OBJ tokens
+        objlabel = self.obj_context_processor({"tokens": obj_tokens})
+        sample.objlabel = objlabel["text"]
+        sample.objlabel_tokens = objlabel["tokens"]
+        sample.objlabel_tokens_enc = enc_obj2bytes(objlabel["tokens"])
+        # sample.context_tokens_enc = enc_obj2bytes(context["tokens"], max_size=4094*2)
+        sample.objlabel_feature_0 = objlabel["text"]
+        sample.objlabel_info_0 = Sample()
+        sample.objlabel_info_0.max_features = objlabel["length"]
         # 3. Load OCR
         if not self.use_ocr:
             # remove all OCRs from the sample
