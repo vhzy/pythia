@@ -94,8 +94,10 @@ class M4CTextVQADataset(TextVQADataset):
             if k != 'max_features':
                 current_sample.image_info_1.pop(k)
         overlap_flag = torch.zeros(150, 150)
-        obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
-        ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
+        #obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
+        #ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
+        obj_obj_relation = torch.ones(100, 100)
+        ocr_ocr_relation = torch.ones(50, 50)
         obj_ocr_relation = self.overlap(current_sample.obj_bbox_coordinates, current_sample.ocr_bbox_coordinates)
         overlap_flag[:100, :100] = obj_obj_relation
         overlap_flag[100:, 100:] = ocr_ocr_relation
