@@ -5,11 +5,11 @@ dataset_attributes:
   m4c_textvqa:
     image_features:
       train:
-      - open_images/detectron_fix_100/fc6/train,m4c_textvqa_ocr_en_frcn_features/train_images
+      - /home/ubuntu/hzy/pythia/data/textvqa_gcy/train,m4c_textvqa_ocr_en_frcn_features/train_images
       val:
-      - open_images/detectron_fix_100/fc6/train,m4c_textvqa_ocr_en_frcn_features/train_images
+      - /home/ubuntu/hzy/pythia/data/textvqa_gcy/train,m4c_textvqa_ocr_en_frcn_features/train_images
       test:
-      - open_images/detectron_fix_100/fc6/test,m4c_textvqa_ocr_en_frcn_features/test_images
+      - /home/ubuntu/hzy/pythia/data/textvqa_gcy/test,m4c_textvqa_ocr_en_frcn_features/test_images
     imdb_files:
       train:
       - imdb/m4c_textvqa/imdb_train_ocr_en.npy
@@ -67,7 +67,7 @@ model_attributes:
         hidden_size: 768
         query_key_size: 768
       params: {}
-    model_data_dir: /raid/lixiangpeng/dataset/textvqa/m4c_data
+    model_data_dir: /home/ubuntu/hzy/pythia/data
     metrics:
     - type: textvqa_accuracy
     losses:
@@ -92,7 +92,7 @@ training_parameters:
     warmup_iterations: 1000
     max_iterations: 48000
     batch_size: 128
-    num_workers: 8
+    num_workers: 12
     task_size_proportional_sampling: true
     monitored_metric: m4c_textvqa/textvqa_accuracy
     metric_minimize: false

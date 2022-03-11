@@ -99,11 +99,11 @@ class M4CTextVQADataset(TextVQADataset):
             if k != 'max_features':
                 current_sample.image_info_1.pop(k)
         visual_overlap_flag = torch.zeros(150, 150)
-        semantic_overlap_flag = torch.zeros(150, 150)
+       # semantic_overlap_flag = torch.zeros(150, 150)
         visual_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
-        semantic_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.objlabel_feature_0, current_sample.objlabel_feature_0)
+       # semantic_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.objlabel_feature_0, current_sample.objlabel_feature_0)
         visual_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.image_feature_1[:50,:], current_sample.image_feature_1[:50,:])
-        semantic_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
+        #semantic_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
         #print("visual_obj_obj_relation:",visual_obj_obj_relation.size())
         #print("semantic_obj_obj_relation:",semantic_obj_obj_relation.size())
         #print("visual_ocr_ocr_relation:",visual_ocr_ocr_relation.size())
@@ -112,14 +112,14 @@ class M4CTextVQADataset(TextVQADataset):
         obj_ocr_relation = self.overlap(current_sample.obj_bbox_coordinates, current_sample.ocr_bbox_coordinates)
         visual_overlap_flag[:100, :100] = visual_obj_obj_relation
         visual_overlap_flag[100:, 100:] = visual_ocr_ocr_relation
-        semantic_overlap_flag[:100, :100] = semantic_obj_obj_relation
-        semantic_overlap_flag[100:, 100:] = semantic_ocr_ocr_relation
+        #semantic_overlap_flag[:100, :100] = semantic_obj_obj_relation
+        #semantic_overlap_flag[100:, 100:] = semantic_ocr_ocr_relation
         visual_overlap_flag[:100, 100:] = obj_ocr_relation
         visual_overlap_flag[100:, :100] = obj_ocr_relation.transpose(1, 0)
-        semantic_overlap_flag[:100, 100:] = obj_ocr_relation
-        semantic_overlap_flag[100:, :100] = obj_ocr_relation.transpose(1, 0)
+        #semantic_overlap_flag[:100, 100:] = obj_ocr_relation
+        #semantic_overlap_flag[100:, :100] = obj_ocr_relation.transpose(1, 0)
         current_sample.visual_overlap_flag = visual_overlap_flag
-        current_sample.semantic_overlap_flag = semantic_overlap_flag
+        #current_sample.semantic_overlap_flag = semantic_overlap_flag
         return current_sample
 
     def compute_similarity_by_cosine(self, x, y):

@@ -100,7 +100,7 @@ training_parameters:
     max_iterations: 48000
     seed: 1000
     batch_size: 128
-    num_workers: 8
+    num_workers: 10
     task_size_proportional_sampling: true
     monitored_metric: m4c_textvqa/textvqa_accuracy
     metric_minimize: false

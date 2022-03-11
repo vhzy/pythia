@@ -15,7 +15,7 @@ from pythia.models.base_model import BaseModel
 from pythia.modules.layers import ClassifierLayer
 
 from pythia.modules.encoders import ImageEncoder
-from pythia.modules.GraphConvNet import QuesMHGATLayers, QuestionConditionedGAT, QCGATLayers, QVGATLayers
+from pythia.modules.GraphConvNet import QuesMHGATLayers, QuestionConditionedGAT, QCGATLayers, QVGATLayers,MultiStepGGCN
 
 @registry.register_model("tig")
 class TIG(BaseModel):
@@ -343,7 +343,7 @@ class TIG(BaseModel):
             fixed_ans_emb=self.classifier.module.weight,
             prev_inds=fwd_results['prev_inds'],
             visual_overlap_flag = sample_list.visual_overlap_flag,
-            semantic_overlap_flag = sample_list.semantic_overlap_flag,
+            #semantic_overlap_flag = sample_list.semantic_overlap_flag,
         )
         #print("overlap_flag:",sample_list.overlap_flag[:10,:10],"\n")
         fwd_results.update(mmt_results)
@@ -462,7 +462,8 @@ class MMT(BertPreTrainedModel):
 
         self.prev_pred_embeddings = PrevPredEmbeddings(config)
         # self.ggcn = QCGATLayers(config.hidden_size, gat_config.num_gat_layers) #
-        self.ggcn = QVGATLayers(config.hidden_size, gat_config.num_gat_layers)  #
+        #self.ggcn = QVGATLayers(config.hidden_size, gat_config.num_gat_layers)  #
+        self.ggcn = MultiStepGGCN(config.hidden_size) 
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
@@ -482,8 +483,8 @@ class MMT(BertPreTrainedModel):
                 obj_semantic_mask,
                 fixed_ans_emb,
                 prev_inds,
-                visual_overlap_flag,
-                semantic_overlap_flag,):
+                visual_overlap_flag,):
+                #semantic_overlap_flag,):
 
         # build embeddings for predictions in previous decoding steps
         # fixed_ans_emb is an embedding lookup table for each fixed vocabulary
@@ -513,9 +514,10 @@ class MMT(BertPreTrainedModel):
         '''
        # related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
        # related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
-        visual_related_feat = self.ggcn(txt_emb, visual_nodes, visual_overlap_flag)
-        semantic_related_feat = self.ggcn(txt_emb, semantic_nodes, semantic_overlap_flag)
+        visual_related_feat = self.ggcn(visual_nodes, visual_overlap_flag)
+        semantic_related_feat = self.ggcn(semantic_nodes, visual_overlap_flag)
         # attention matrix
+        '''
         visual_similarity = torch.matmul(visual_related_feat, semantic_related_feat.permute(0, 2, 1))
         att = F.softmax(visual_similarity, dim=2)  # [batch, ocr_num, ocr_num]
         semantic_att = torch.matmul(att, semantic_related_feat)  # [batch, ocr_num, im_sem_embed_dim]
@@ -525,9 +527,9 @@ class MMT(BertPreTrainedModel):
         att = F.softmax(semantic_similarity, dim=2)  # [batch, ocr_num, ocr_num]
         visual_att = torch.matmul(att, visual_related_feat)  # [batch, ocr_num, im_sem_embed_dim]
         semantic_visual_feat = semantic_related_feat + visual_att
-
+'''
         #在这里做MMGNN的操作
-        related_feat = torch.cat([visual_semantic_feat,semantic_visual_feat],dim=1)
+        related_feat = torch.cat([visual_related_feat,semantic_related_feat],dim=1)
         encoder_inputs = torch.cat(
             [txt_emb, related_feat,ocr_emb, dec_emb],
             dim=1
