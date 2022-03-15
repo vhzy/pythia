@@ -959,8 +959,8 @@ class BertTokenizerProcessor(BaseProcessor):
 
     def get_vocab_size(self):
         return self.bert_tokenizer.vocab_size
-
-    def __call__(self, item):
+    def __call__(self, item, updatelen=None):
+        if updatelen is not None: self.max_length = updatelen
         # [PAD] in self.bert_tokenizer is zero (as checked in assert above)
         token_inds = torch.zeros(self.max_length, dtype=torch.long)
 

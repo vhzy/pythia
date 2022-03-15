@@ -14,7 +14,7 @@ dataset_attributes:
         obj_context_processor:
           type: fasttext
           params:
-            max_length: 100
+            max_length: 150
             model_file: /home/ubuntu/hzy/pythia//pythia/models/.vector_cache/wiki.en.bin    
         ocr_token_processor:
           type: simple_word

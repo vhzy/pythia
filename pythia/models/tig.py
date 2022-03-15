@@ -219,9 +219,11 @@ class TIG(BaseModel):
                 self.linear_obj_bbox_to_mmt_in(obj_bbox)
             )
         )
+        ocr_bbox = sample_list.ocr_bbox_coordinates
+        all_bbox=torch.cat([obj_bbox,ocr_bbox],dim=-2)
         obj_semantic = self.obj_semantic_feat_layer_norm(
             self.linear_obj_semantic_feat_to_mmt_in(obj_label)+ self.ocr_bbox_layer_norm(
-                self.linear_ocr_bbox_to_mmt_in(obj_bbox)
+                self.linear_ocr_bbox_to_mmt_in(all_bbox)
             )
         ) 
         obj_mmt_in = self.obj_drop(obj_mmt_in)
@@ -325,7 +327,6 @@ class TIG(BaseModel):
         ocr_semantic_mask = fwd_results['ocr_mask']
         obj_semantic = fwd_results['obj_semantic']
         obj_semantic_mask = fwd_results['obj_mask']
-
         mmt_results = self.mmt(
             txt_emb=fwd_results['txt_emb'],
             txt_mask=fwd_results['txt_mask'],
@@ -463,7 +464,7 @@ class MMT(BertPreTrainedModel):
         self.prev_pred_embeddings = PrevPredEmbeddings(config)
         # self.ggcn = QCGATLayers(config.hidden_size, gat_config.num_gat_layers) #
         #self.ggcn = QVGATLayers(config.hidden_size, gat_config.num_gat_layers)  #
-        self.ggcn = MultiStepGGCN(config.hidden_size) 
+        self.ggcn = QuestionConditionedGAT(768, 0.15) # 40.99
         self.encoder = BertEncoder(config)
         # self.apply(self.init_weights)  # old versions of pytorch_transformers
         self.init_weights()
@@ -500,10 +501,10 @@ class MMT(BertPreTrainedModel):
             dtype=torch.float32,
             device=dec_emb.device
         )
-       # concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
+        concated_feat = torch.cat([obj_emb, ocr_emb], dim=1)
 
-        visual_nodes = torch.cat([obj_emb,ocr_visual],dim=1)
-        semantic_nodes =torch.cat([obj_semantic,ocr_semantic],dim=1)
+        #visual_nodes = torch.cat([obj_emb,ocr_visual],dim=1)
+        #semantic_nodes =torch.cat([obj_semantic,ocr_semantic],dim=1)
 
 
         '''
@@ -512,10 +513,10 @@ class MMT(BertPreTrainedModel):
         print("concated_feat_size",concated_feat.size(),"\n")
         print("dec_emb_size",dec_emb.size(),"\n")
         '''
+        related_feat = self.ggcn(txt_emb, concated_feat, visual_overlap_flag)
        # related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
-       # related_feat = self.ggcn(txt_emb, concated_feat, overlap_flag)
-        visual_related_feat = self.ggcn(visual_nodes, visual_overlap_flag)
-        semantic_related_feat = self.ggcn(semantic_nodes, visual_overlap_flag)
+        #visual_related_feat = self.ggcn(txt_emb,visual_nodes, visual_overlap_flag)
+        #semantic_related_feat = self.ggcn(txt_emb,semantic_nodes, visual_overlap_flag)
         # attention matrix
         '''
         visual_similarity = torch.matmul(visual_related_feat, semantic_related_feat.permute(0, 2, 1))
@@ -529,14 +530,14 @@ class MMT(BertPreTrainedModel):
         semantic_visual_feat = semantic_related_feat + visual_att
 '''
         #在这里做MMGNN的操作
-        related_feat = torch.cat([visual_related_feat,semantic_related_feat],dim=1)
+        related_feat = torch.cat([related_feat],dim=1)
         encoder_inputs = torch.cat(
-            [txt_emb, related_feat,ocr_emb, dec_emb],
+            [txt_emb, obj_semantic,related_feat,dec_emb],
             dim=1
         )
 
         attention_mask   = torch.cat(
-            [txt_mask, obj_mask,ocr_visual_mask,obj_semantic_mask, ocr_semantic_mask,ocr_mask,dec_mask],
+            [txt_mask, obj_mask,ocr_mask, obj_mask,ocr_mask,dec_mask],
             dim=1
         )
 
@@ -550,6 +551,18 @@ class MMT(BertPreTrainedModel):
         dec_max_num = dec_mask.size(-1)
         txt_begin = 0
         txt_end = txt_begin + txt_max_num
+        obj_semantic_begin = txt_max_num
+        obj_semantic_end = obj_semantic_begin + obj_max_num
+        ocr_semantic_begin =  txt_max_num + obj_max_num
+        ocr_semantic_end = ocr_semantic_begin + ocr_max_num
+        obj_begin = txt_max_num + obj_max_num + ocr_max_num
+        obj_end = obj_begin + obj_max_num
+        ocr_begin = txt_max_num + obj_max_num + ocr_max_num + obj_max_num
+        ocr_end = obj_begin + ocr_max_num
+
+        '''
+        txt_begin = 0
+        txt_end = txt_begin + txt_max_num
         obj_begin = txt_max_num
         obj_end = obj_begin + obj_max_num
         ocr_visual_begin = txt_max_num + obj_max_num
@@ -560,7 +573,7 @@ class MMT(BertPreTrainedModel):
         ocr_semantic_end = ocr_semantic_begin + ocr_semantic_max_num
         ocr_begin = txt_max_num + obj_max_num + ocr_visual_max_num + obj_semantic_max_num +ocr_semantic_max_num
         ocr_end =  ocr_begin + ocr_max_num
-
+        '''
         # We create a 3D attention mask from a 2D tensor mask.
         # Sizes are [batch_size, 1, from_seq_length, to_seq_length]
         # So we can broadcast to
@@ -592,9 +605,9 @@ class MMT(BertPreTrainedModel):
         mmt_seq_output = encoder_outputs[0]
         mmt_txt_output = mmt_seq_output[:, txt_begin:txt_end]
         mmt_obj_output = mmt_seq_output[:, obj_begin:obj_end]
-        mmt_ocr_visual_output = mmt_seq_output[:, ocr_visual_begin:ocr_visual_end]
-        mmt_obj_semantic_output = mmt_seq_output[:, obj_semantic_begin:obj_semantic_end]
-        mmt_ocr_semantic_output = mmt_seq_output[:, ocr_semantic_begin:ocr_semantic_end]
+       # mmt_ocr_visual_output = mmt_seq_output[:, ocr_visual_begin:ocr_visual_end]
+       # mmt_obj_semantic_output = mmt_seq_output[:, obj_semantic_begin:obj_semantic_end]
+       # mmt_ocr_semantic_output = mmt_seq_output[:, ocr_semantic_begin:ocr_semantic_end]
         mmt_ocr_output = mmt_seq_output[:, ocr_begin:ocr_end]
         mmt_dec_output = mmt_seq_output[:, -dec_max_num:]
 
@@ -606,8 +619,6 @@ class MMT(BertPreTrainedModel):
             'mmt_seq_output': mmt_seq_output,
             'mmt_txt_output': mmt_txt_output,
             'mmt_obj_output': mmt_obj_output,
-            'mmt_ocr_visual_output': mmt_ocr_visual_output,
-            'mmt_ocr_semantic_output': mmt_ocr_semantic_output,
             'mmt_ocr_output': mmt_ocr_output,
             'mmt_dec_output': mmt_dec_output,
         }
@@ -651,6 +662,8 @@ class OcrPtrNet(nn.Module):
             key_layer.transpose(-1, -2)
         )
         scores = scores / math.sqrt(self.query_key_size)
+        print("scores:",scores.size())
+        print("extended_attention_mask:",extended_attention_mask.size())
         scores = scores + extended_attention_mask
         if squeeze_result:
             scores = scores.squeeze(1)

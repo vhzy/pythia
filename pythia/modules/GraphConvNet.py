@@ -198,18 +198,18 @@ class QuestionConditionedGAT(nn.Module):
         feat_repr_fc = torch.cat([feat_repr, ques_ext_repr], dim=-1) # bs x N x 2dim
         feat_proj = self.fc(feat_repr_fc)
         q_feats = self.q_fc(feat_proj)
-        print("q_feats",q_feats.size())
-        print(q_feats)
+        #print("q_feats",q_feats.size())
+        #print(q_feats)
         k_feats = self.k_fc(feat_proj)
-        print("k_feats",k_feats.size())
-        print(k_feats)
+        #print("k_feats",k_feats.size())
+        #print(k_feats)
         logits = q_feats + torch.transpose(k_feats, 2, 1)
-        print("logits",logits.size())
-        print(logits)
+        #print("logits",logits.size())
+        #print(logits)
         # option 1:
         masked_logits = logits + (1.0 - adj_mat) * -1e9
-        print("masked_logits",masked_logits.size())
-        print(masked_logits)
+       #print("masked_logits",masked_logits.size())
+        #print(masked_logits)
         masked_logits = self.leaky_relu(masked_logits)
         atten_value = F.softmax(masked_logits, dim=-1)
 

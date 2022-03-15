@@ -69,12 +69,11 @@ class M4CTextVQADataset(TextVQADataset):
         sample_info = self.imdb[idx]
         sample_info = self.preprocess_sample_info(sample_info)
         current_sample = Sample()
-
         # breaking change from VQA2Dataset: load question_id
         current_sample.question_id = torch.tensor(
             sample_info["question_id"], dtype=torch.int
         )
-
+        #print(current_sample.question_id)
         if isinstance(sample_info["image_id"], int):
             current_sample.image_id = str(sample_info["image_id"])
         else:
@@ -84,9 +83,9 @@ class M4CTextVQADataset(TextVQADataset):
             features = self.features_db[idx]
             if 'object_tokens' not in features['image_info_0']:
                 features['image_info_0']['object_tokens'] = \
-                    [self.object_clsname[x] for x in features['image_info_0']['objects']] #object_tokens是一个列表，里面是这张图片里面的物体的字符串，
+                    [self.object_clsname[x+1] for x in features['image_info_0']['objects']] #object_tokens是一个列表，里面是这张图片里面的物体的字符串，
+                features['image_info_0']['object_tokens'] += ['characters']*50
             current_sample.update(features)
-
         current_sample = self.add_sample_details(sample_info, current_sample)
         current_sample = self.add_answer_info(sample_info, current_sample)
 
@@ -100,9 +99,9 @@ class M4CTextVQADataset(TextVQADataset):
                 current_sample.image_info_1.pop(k)
         visual_overlap_flag = torch.zeros(150, 150)
        # semantic_overlap_flag = torch.zeros(150, 150)
-        visual_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
+        #visual_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.image_feature_0, current_sample.image_feature_0)
        # semantic_obj_obj_relation = self.compute_similarity_by_cosine(current_sample.objlabel_feature_0, current_sample.objlabel_feature_0)
-        visual_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.image_feature_1[:50,:], current_sample.image_feature_1[:50,:])
+        #visual_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.image_feature_1[:50,:], current_sample.image_feature_1[:50,:])
         #semantic_ocr_ocr_relation = self.compute_similarity_by_cosine(current_sample.context_feature_0, current_sample.context_feature_0)
         #print("visual_obj_obj_relation:",visual_obj_obj_relation.size())
         #print("semantic_obj_obj_relation:",semantic_obj_obj_relation.size())
@@ -110,6 +109,8 @@ class M4CTextVQADataset(TextVQADataset):
         #print("semantic_ocr_ocr_relation:",semantic_ocr_ocr_relation.size())
         #print(current_sample.image_feature_1.size())
         obj_ocr_relation = self.overlap(current_sample.obj_bbox_coordinates, current_sample.ocr_bbox_coordinates)
+        visual_obj_obj_relation = torch.ones(100,100)
+        visual_ocr_ocr_relation = torch.ones(50,50)
         visual_overlap_flag[:100, :100] = visual_obj_obj_relation
         visual_overlap_flag[100:, 100:] = visual_ocr_ocr_relation
         #semantic_overlap_flag[:100, :100] = semantic_obj_obj_relation
@@ -164,7 +165,9 @@ class M4CTextVQADataset(TextVQADataset):
             sample_info['question'] if 'question' in sample_info
             else sample_info['question_str']
         )
+        #print(question_str)
         processed_question = self.text_processor({"question": question_str})
+        #print(processed_question)
         sample.text = processed_question['token_inds']
         sample.text_len = processed_question['token_num']
 
@@ -173,11 +176,18 @@ class M4CTextVQADataset(TextVQADataset):
         sample.obj_bbox_coordinates = self.copy_processor(
             {"blob": sample_info["obj_normalized_boxes"]}
         )["blob"]
-
+        
+        '''
+        obj_str = sample['image_info_0']['object_tokens']
+        processed_obj = self.text_processor({"question": obj_str}, updatelen=152)
+        sample.obj_text = processed_obj['token_inds'][1:]   #去掉CLS
+        sample.obj_text_len = processed_obj['token_num']-1
+        '''
         obj_tokens = [
             self.ocr_token_processor({"text": token})["text"]
             for token in sample['image_info_0']["object_tokens"]]
-       #print(obj_tokens)    
+        #print(question_str)
+        #print(obj_tokens)    
         # Get FastText embeddings for OBJ tokens
         objlabel = self.obj_context_processor({"tokens": obj_tokens})
         sample.objlabel = objlabel["text"]
@@ -187,6 +197,7 @@ class M4CTextVQADataset(TextVQADataset):
         sample.objlabel_feature_0 = objlabel["text"]
         sample.objlabel_info_0 = Sample()
         sample.objlabel_info_0.max_features = objlabel["length"]
+        
         # 3. Load OCR
         if not self.use_ocr:
             # remove all OCRs from the sample
